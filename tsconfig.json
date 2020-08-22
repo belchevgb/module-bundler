@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "CommonJS",
+    "lib": ["es2018", "dom"],
+    "allowJs": true,
+    "strict": false,
+    "noImplicitThis": true,
+    "noImplicitAny": true,
+    "alwaysStrict": true,
+    "types": ["node"],
+    "outDir": "./dist",
+    "sourceMap": true,
+    "baseUrl": "/",
+    "declaration": true,
+    "inlineSources": true
+  }
+}

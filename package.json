@@ -1,0 +1,20 @@
+{
+  "name": "bundler",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "npm run build && node ./dist/index.js",
+    "build": "rimraf dist && tsc -p ./tsconfig.json"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^14.6.0",
+    "rimraf": "3.0.2",
+    "ttypescript": "^1.5.10"
+  },
+  "dependencies": {
+    "typescript": "^3.9.7"
+  }
+}
