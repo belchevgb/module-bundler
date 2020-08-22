@@ -58,18 +58,6 @@ class SystemImpl implements System {
             return module;
         }
 
-        const walkModuleTree = async (module: JsModule) => {
-            const importedModules = getImportedModulePaths(module);
-
-            for (const p of importedModules) {
-                const dep = await createModule(module, p);
-                module.dependencies.push(dep);
-            }
-            
-            module.dependencies.forEach(d => walkModuleTree(d as JsModule));
-        }
-
-
         for (const ep of this.cfg.entrypoints) {
             const epModule = await createModule(null, ep.path);
             this.entryModules.push(epModule);
