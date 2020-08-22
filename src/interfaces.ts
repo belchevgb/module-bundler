@@ -16,6 +16,10 @@ export class Asset {
     ) { }
 }
 
+export class Bundle {
+    readonly modules: string[] = [];
+}
+
 export interface System {
     fs: FileSystem;
     path: Path;

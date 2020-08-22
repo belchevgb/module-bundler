@@ -9,7 +9,7 @@ export enum JsModuleLibs {
 
 export class JsModule extends Asset {
     ast: ts.SourceFile;
-    id: string | number;
+    id: string;
     moduleLib: JsModuleLibs;
     fileName: string;
 }

@@ -12,4 +12,6 @@ export interface Path {
     getFileExtension(path: string): string;
 
     isAbsolute(path: string): boolean;
+
+    resolveRelativeToProjectRoot(relativePath: string): string;
 }

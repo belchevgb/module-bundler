@@ -1,5 +1,6 @@
 import ts = require("typescript");
 import { JsModule } from "../../../module";
+import { printNode } from "../../debug";
 
 // removes Object.defineProperty(exports, "__esModule", { value: true });
 function cjsRemoveDefine__esModuleTransformer<T extends ts.Node>(): ts.TransformerFactory<T> {

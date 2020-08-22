@@ -1,4 +1,5 @@
 import { JsModule } from "../../module";
+import ts = require("typescript");
 
 const moduleWrapper = `__addModule('{{moduleId}}', function(__exportedMembers) {
     {{body}}
@@ -8,5 +9,5 @@ const moduleWrapper = `__addModule('{{moduleId}}', function(__exportedMembers) {
 export function wrapModule(module: JsModule) {
     return moduleWrapper
         .replace("{{moduleId}}", module.id.toString())
-        .replace("{{body}}", module.ast.getText());
+        .replace("{{body}}", ts.createPrinter().printFile(module.ast));
 }

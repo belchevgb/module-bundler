@@ -1,5 +1,7 @@
 import { Path } from "./interfaces";
-import { join, basename, resolve, dirname, extname, isAbsolute } from "path";
+import { join, basename, resolve, dirname, extname, isAbsolute, relative } from "path";
+
+const rootPath = process.cwd();
 
 export class NodeJsPath implements Path {
     getFileName(path: string): string {
@@ -28,5 +30,9 @@ export class NodeJsPath implements Path {
 
     isAbsolute(path: string): boolean {
         return isAbsolute(path);
+    }
+
+    resolveRelativeToProjectRoot(relativePath: string) {
+        return this.join(rootPath, relativePath);
     }
 }

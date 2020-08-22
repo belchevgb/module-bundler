@@ -6,8 +6,14 @@ export function parseModule(module: JsModule) {
 }
 
 export function getModuleLib(module: JsModule) {
-    if ((module.content as string).includes("__esModule")) {
+    const content = (module.content as string);
+    
+    if (content.includes("__esModule")) {
         return JsModuleLibs.cjs;
+    }
+
+    if (content.includes("__internalRequire")) {
+        return JsModuleLibs.internal;
     }
 }
 
@@ -49,6 +55,7 @@ export function getImportedModulePaths(module: JsModule) {
     switch (module.moduleLib) {
         case JsModuleLibs.cjs:
             return extractCjsModuleImports(module);
-        default: throw "Unknown module lib."
+        case JsModuleLibs.internal:
+            return [];
     }
 }

@@ -4,7 +4,7 @@ import { Config } from "../../config";
 
 let path: Path;
 
-export function getPath(cfg: Config): Path {
+export function getPath(): Path {
     if (!path) path = new NodeJsPath();
     return path;
 }

@@ -10,5 +10,5 @@ export function transformJsModule(module: JsModule) {
             break;
     }
 
-    module.ast = ts.createSourceFile(module.ast.fileName, wrapModule(module), module.ast.languageVersion);
+    module.ast = ts.createSourceFile(`${module.id}.js`, wrapModule(module), module.ast.languageVersion);
 }

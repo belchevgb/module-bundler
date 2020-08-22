@@ -1,3 +1,5 @@
 import { system } from "./src/system";
 
-system.start();
+(async function() {
+    await system.start();
+}());

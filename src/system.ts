@@ -5,28 +5,31 @@ import { Path } from "./utils/path/interfaces";
 import { getPath } from "./utils/path";
 import { JsModule } from "./compiler/js/module";
 import { parseModule, getImportedModulePaths, getModuleLib } from "./compiler/js/ast/parse";
-import { System, ModuleTypes } from "./interfaces";
-import { Mutator } from "./mutators/mutator";
-import { Preprocessor, preprocessAsset, registerPreprocessor } from "./preprocessors/preprocessor";
-import { generate, GeneratorCommand, Generator, registerGenerator } from "./generators/generator";
+import { System, ModuleTypes, Bundle } from "./interfaces";
+import { preprocessAsset, registerPreprocessor } from "./preprocessors/preprocessor";
+import { generate, GeneratorCommand, registerGenerator } from "./generators/generator";
 import { transformJsModule } from "./compiler/js/ast/transformers";
 import { resolveAssetPath, registerPathResolver } from "./path-resolvers/path-resolver";
+import { visitEachJsModule as visitEachJsModule, astToString } from "./compiler/js/ast/utils";
+import { optimizeAsset } from "./optimizers/optimizer";
 
 class SystemImpl implements System {
     readonly fs: FileSystem;
     readonly path: Path;
     private cfg: Config;
     private entryModules: JsModule[] = [];
+    private bundles: Bundle[] = [];
 
     constructor() {
-        this.cfg = getConfig();
-        this.fs = getFileSystem(this.cfg);
-        this.path = getPath(this.cfg);
+        this.fs = getFileSystem();
+        this.path = getPath();
+        this.cfg = getConfig(this.path);
     }
 
-    start() {
+    async start() {
         this.registerPlugins();
-        this.buildJsModuleGraph();
+        await this.buildJsModuleGraph();
+        this.createBundles();
     }
 
     private registerPlugins() {
@@ -35,7 +38,7 @@ class SystemImpl implements System {
         this.cfg.pathResolvers.forEach(p => registerPathResolver(p));
     }
 
-    private buildJsModuleGraph() {
+    private async buildJsModuleGraph() {
         const createModule = async (currentModule: JsModule, path: string) => {
             const currentModulePath = currentModule?.filePath || "";
             const filePath = await resolveAssetPath(currentModulePath, path, ModuleTypes.script, this);
@@ -44,10 +47,12 @@ class SystemImpl implements System {
             const module = new JsModule(filePath, ext, content, content.length);
 
             await preprocessAsset(module);
+
             module.fileName = this.path.getFileName(filePath);
             module.id = await generate(GeneratorCommand.jsModuleId, module);
             module.ast = parseModule(module);
             module.moduleLib = getModuleLib(module);
+
             transformJsModule(module);
 
             return module;
@@ -56,18 +61,39 @@ class SystemImpl implements System {
         const walkModuleTree = async (module: JsModule) => {
             const importedModules = getImportedModulePaths(module);
 
-
-            importedModules.forEach(async p => {
+            for (const p of importedModules) {
                 const dep = await createModule(module, p);
                 module.dependencies.push(dep);
-            });
+            }
+            
+            module.dependencies.forEach(d => walkModuleTree(d as JsModule));
         }
 
-        this.cfg.entrypoints.forEach(async ep => {
+
+        for (const ep of this.cfg.entrypoints) {
             const epModule = await createModule(null, ep.path);
             this.entryModules.push(epModule);
 
-            await walkModuleTree(epModule);
+            visitEachJsModule(epModule, async m => {
+                const importedModules = getImportedModulePaths(m);
+
+                for (const p of importedModules) {
+                    const dep = await createModule(m, p);
+                    m.dependencies.push(dep);
+                }
+            });
+        }
+    }
+
+    private createBundles() {
+        this.entryModules.forEach(em => {
+            const bundle = new Bundle();
+            this.bundles.push(bundle);
+
+            visitEachJsModule(em, async m => {
+                await optimizeAsset(em, this);
+                bundle.modules.push(astToString(m.ast));
+            });
         });
     }
 }
