@@ -16,7 +16,7 @@ export class DefaultScriptPathResolver extends PathResolver {
             let resolvedPath = "";
 
             if (system.path.isAbsolute(unresolvedPath)) {
-                resolvedPath = unresolvedPath;
+                return Promise.resolve(unresolvedPath);
             }
 
             const nodeModulesPath = path.join(__dirname, "node_modules", unresolvedPath);
