@@ -13,6 +13,16 @@ export function visitEachJsModule(mdoule: JsModule, cb: (m: JsModule) => void) {
     }
 }
 
+export async function visitEachJsModuleAsync(mdoule: JsModule, cb: (m: JsModule) => Promise<void>) {
+    await cb(mdoule);
+
+    if (mdoule?.dependencies?.length) {
+        for (const ch of mdoule.dependencies) {
+            await visitEachJsModuleAsync(ch as JsModule, cb);
+        }
+    }
+}
+
 export function visitEachNode(node: ts.Node, cb: (n: ts.Node) => void) {
     cb(node);
 

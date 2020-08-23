@@ -10,7 +10,7 @@ import { preprocessAsset, registerPreprocessor } from "./preprocessors/preproces
 import { generate, GeneratorCommand, registerGenerator } from "./generators/generator";
 import { transformJsModule } from "./compiler/js/ast/transformers";
 import { resolveAssetPath, registerPathResolver } from "./path-resolvers/path-resolver";
-import { visitEachJsModule as visitEachJsModule, astToString } from "./compiler/js/ast/utils";
+import { visitEachJsModule as visitEachJsModule, astToString, visitEachJsModuleAsync } from "./compiler/js/ast/utils";
 import { optimizeAsset } from "./optimizers/optimizer";
 
 class SystemImpl implements System {
@@ -29,7 +29,8 @@ class SystemImpl implements System {
     async start() {
         this.registerPlugins();
         await this.buildJsModuleGraph();
-        this.createBundles();
+        await this.createBundles();
+        this.output();
     }
 
     private registerPlugins() {
@@ -79,16 +80,28 @@ class SystemImpl implements System {
         }
     }
 
-    private createBundles() {
-        this.entryModules.forEach(em => {
+    private async createBundles() {
+        for (const em of this.entryModules) {
             const bundle = new Bundle();
             this.bundles.push(bundle);
 
-            visitEachJsModule(em, async m => {
-                await optimizeAsset(em, this);
+            await visitEachJsModuleAsync(em, async m => {
+                await optimizeAsset(m, this);
                 const moduleContent = astToString(m.ast);
                 bundle.modules.push(moduleContent);
             });
+        }
+    }
+
+    private output() {
+        this.bundles.forEach((b, i) => {
+            const content = b.modules.join("");
+            const bundlePath = this.path.join(this.cfg.outDir, `bundle_${i}.js`);
+            if (this.fs.exists(bundlePath)) {
+                this.fs.delete(bundlePath);
+            }
+
+            this.fs.write(bundlePath, content);
         });
     }
 }

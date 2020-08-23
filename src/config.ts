@@ -16,6 +16,7 @@ interface EntryPoint {
 
 export interface Config {
     entrypoints: EntryPoint[];
+    outDir: string;
     generators: Generator[];
     preprocessors: Preprocessor[];
     pathResolvers: PathResolver[];
@@ -45,6 +46,8 @@ function addDefaultConfig(cfg: Config, path: Path) {
         { path: path.resolveRelativeToProjectRoot("./src/compiler/js/ast/runtime.ts") },
         ...cfg.entrypoints
     ]
+
+    cfg.outDir = path.resolveRelativeToProjectRoot(cfg.outDir);
 }
 
 export function getConfig(path: Path): Config {
