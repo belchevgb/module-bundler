@@ -8,6 +8,8 @@ export function transformJsModule(module: JsModule) {
         case JsModuleLibs.cjs:
             transformCjsModule(module);
             break;
+        case JsModuleLibs.internal:
+            return;
     }
 
     module.ast = ts.createSourceFile(`${module.id}.js`, wrapModule(module), module.ast.languageVersion);

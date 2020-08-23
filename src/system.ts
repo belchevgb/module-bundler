@@ -58,18 +58,24 @@ class SystemImpl implements System {
             return module;
         }
 
+        const linkModules = async(m: JsModule) => {
+            const importedModules = getImportedModulePaths(m);
+
+            for (const p of importedModules) {
+                const dep = await createModule(m, p);
+                m.dependencies.push(dep);
+            }
+
+            for (const ch of m.dependencies) {
+                linkModules(ch as JsModule);
+            }
+        };
+
         for (const ep of this.cfg.entrypoints) {
             const epModule = await createModule(null, ep.path);
             this.entryModules.push(epModule);
 
-            visitEachJsModule(epModule, async m => {
-                const importedModules = getImportedModulePaths(m);
-
-                for (const p of importedModules) {
-                    const dep = await createModule(m, p);
-                    m.dependencies.push(dep);
-                }
-            });
+            await linkModules(epModule);
         }
     }
 
@@ -80,7 +86,8 @@ class SystemImpl implements System {
 
             visitEachJsModule(em, async m => {
                 await optimizeAsset(em, this);
-                bundle.modules.push(astToString(m.ast));
+                const moduleContent = astToString(m.ast);
+                bundle.modules.push(moduleContent);
             });
         });
     }

@@ -1,6 +1,7 @@
 import ts = require("typescript");
 import { JsModule } from "../../../module";
 import { printNode } from "../../debug";
+import { INTERNAL_REQUIRE_FN_NAME, EXPORTED_MEMBERS_PROP_NAME } from "../../utils";
 
 // removes Object.defineProperty(exports, "__esModule", { value: true });
 function cjsRemoveDefine__esModuleTransformer<T extends ts.Node>(): ts.TransformerFactory<T> {
@@ -65,7 +66,7 @@ function requireCallsTransformer<T extends ts.Node>(): ts.TransformerFactory<T> 
                 ts.isStringLiteral(n.arguments[0])) {
                     const argText = (n.arguments[0] as ts.StringLiteral).text;
                     return ts.createCall(
-                        ts.createIdentifier("__internalRequire"),
+                        ts.createIdentifier(INTERNAL_REQUIRE_FN_NAME),
                         null,
                         [ts.createStringLiteral(argText)]
                     );
@@ -83,7 +84,7 @@ function exportsTransformer<T extends ts.Node>(): ts.TransformerFactory<T> {
         const visit: ts.Visitor = n => {
             if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === "exports") {
                 return ts.createPropertyAccess(
-                    ts.createIdentifier("__exportedMembers"),
+                    ts.createIdentifier(EXPORTED_MEMBERS_PROP_NAME),
                     ts.createIdentifier(n.name.text)
                 )
             }

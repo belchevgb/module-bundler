@@ -1,5 +1,7 @@
 import * as ts from "typescript";
 import { JsModule, JsModuleLibs } from "../module";
+import { INTERNAL_REQUIRE_FN_NAME, visitEachNode } from "./utils";
+import { printNode, printNodeKind } from "./debug";
 
 export function parseModule(module: JsModule) {
     return ts.createSourceFile(module.fileName, module.content, ts.ScriptTarget.Latest);
@@ -12,19 +14,19 @@ export function getModuleLib(module: JsModule) {
         return JsModuleLibs.cjs;
     }
 
-    if (content.includes("__internalRequire")) {
+    if (content.includes(INTERNAL_REQUIRE_FN_NAME)) {
         return JsModuleLibs.internal;
     }
 }
 
-function tryGetRequireImportPath(node: ts.Node) {
+function tryGetModulePath(node: ts.Node) {
     if (node.kind !== ts.SyntaxKind.CallExpression) {
         return null;
     }
 
     const callExpr = node as ts.CallExpression;
     const expr = callExpr.expression;
-    const isRequireCall = ts.isIdentifier(expr) && expr.text === "require" && callExpr.arguments.length === 1 && ts.isStringLiteral(callExpr.arguments[0]);
+    const isRequireCall = ts.isIdentifier(expr) && expr.text === INTERNAL_REQUIRE_FN_NAME && callExpr.arguments.length === 1 && ts.isStringLiteral(callExpr.arguments[0]);
 
     if (!isRequireCall) {
         return null;
@@ -34,28 +36,15 @@ function tryGetRequireImportPath(node: ts.Node) {
     return importPath;
 }
 
-function extractCjsModuleImports(module: JsModule): string[] {
+export function getImportedModulePaths(module: JsModule) {
     const imports: string[] = [];
     
-    function walkAst(node: ts.Node) {
-        const maybeImportPath = tryGetRequireImportPath(node);
+    visitEachNode(module.ast, n => {
+        const maybeImportPath = tryGetModulePath(n);
         if (maybeImportPath !== null) {
             imports.push(maybeImportPath);
         }
-
-        ts.forEachChild(node, walkAst);
-    }
-
-    walkAst(module.ast);
+    });
 
     return imports;
-}
-
-export function getImportedModulePaths(module: JsModule) {
-    switch (module.moduleLib) {
-        case JsModuleLibs.cjs:
-            return extractCjsModuleImports(module);
-        case JsModuleLibs.internal:
-            return [];
-    }
 }
