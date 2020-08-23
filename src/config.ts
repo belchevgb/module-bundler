@@ -8,6 +8,10 @@ import { DefaultScriptPathResolver } from "./path-resolvers/builtin/default-scri
 import { FileSystem } from "./utils/fs/interfaces";
 import { Path } from "./utils/path/interfaces";
 import { Optimizer } from "./optimizers/optimizer";
+import { AssetAnalyzer } from "./analyzer";
+import { DefaultJsAnalyzer } from "./analyzer/builtin/js-analyzer";
+import { AssetTransformer } from "./transformers/transformer";
+import { DefaultJsAssetTransformer } from "./transformers/builtin/js/js-asset.transformer";
 
 interface EntryPoint {
     path: string;
@@ -17,11 +21,13 @@ interface EntryPoint {
 export interface Config {
     entrypoints: EntryPoint[];
     outDir: string;
+    indexFile: string;
     generators: Generator[];
     preprocessors: Preprocessor[];
     pathResolvers: PathResolver[];
-
+    analyzers: AssetAnalyzer[];
     optimizers: Optimizer[];
+    transformers: AssetTransformer[];
 }
 
 const DEFAULT_CONFIG_FILE_NAME = "bundler-config.ts";
@@ -33,6 +39,12 @@ function initEmptyProps(cfg: Config) {
     if (!cfg.generators?.length) cfg.generators = [];
     if (!cfg.pathResolvers?.length) cfg.pathResolvers = [];
     if (!cfg.optimizers?.length) cfg.optimizers = [];
+    if (!cfg.analyzers?.length) cfg.analyzers = [];
+    if (!cfg.optimizers?.length) cfg.optimizers = [];
+    if (!cfg.transformers?.length) cfg.transformers = [];
+
+    if (!cfg.outDir) cfg.outDir = "dist";
+    if (!cfg.indexFile) cfg.indexFile = "index.html";
 }
 
 function addDefaultConfig(cfg: Config, path: Path) {
@@ -42,12 +54,12 @@ function addDefaultConfig(cfg: Config, path: Path) {
 
     cfg.pathResolvers.push(new DefaultScriptPathResolver());
 
-    cfg.entrypoints = [
-        { path: path.resolveRelativeToProjectRoot("./src/compiler/js/ast/runtime.ts") },
-        ...cfg.entrypoints
-    ]
+    cfg.analyzers.push(new DefaultJsAnalyzer());
+
+    cfg.transformers.push(new DefaultJsAssetTransformer());
 
     cfg.outDir = path.resolveRelativeToProjectRoot(cfg.outDir);
+    cfg.indexFile = path.resolveRelativeToProjectRoot(cfg.indexFile);
 }
 
 export function getConfig(path: Path): Config {

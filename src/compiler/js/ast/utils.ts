@@ -1,6 +1,7 @@
 import ts = require("typescript");
-import { Asset } from "../../../interfaces";
-import { JsModule } from "../module";
+import { Asset, Bundle, System } from "../../../interfaces";
+import { JsModule } from "../../modules/js-module";
+import { FileSystem } from "../../../utils/fs/interfaces";
 
 export const INTERNAL_REQUIRE_FN_NAME = "__internalRequire";
 export const EXPORTED_MEMBERS_PROP_NAME = "__exportedMembers";
@@ -32,4 +33,15 @@ export function visitEachNode(node: ts.Node, cb: (n: ts.Node) => void) {
 const printer = ts.createPrinter();
 export function astToString(ast: ts.Node) {
     return printer.printNode(ts.EmitHint.Unspecified, ast, ast.getSourceFile());
+}
+
+export function createRuntimeBundle(system: System): Bundle {
+    const runtimePath = system.path.resolveRelativeToProjectRoot("./src/compiler/js/ast/runtime.ts");
+    const runtimeSource = system.fs.readTextFile(runtimePath);
+    const source = ts.transpileModule(runtimeSource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+    const bundle = new Bundle();
+
+    bundle.modules.push(source);
+
+    return bundle;
 }

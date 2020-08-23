@@ -6,7 +6,7 @@ export abstract class Optimizer {
 
 const optimizers: Optimizer[] = [];
 
-export function registerPathResolver(optimizer: Optimizer) {
+export function registerOptimizer(optimizer: Optimizer) {
     optimizers.push(optimizer);
 }
 

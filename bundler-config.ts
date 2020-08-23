@@ -1,4 +1,5 @@
 module.exports = {
     entrypoints: [{ path: "./sample/index.ts" }],
-    outDir: "dist"
+    outDir: "dist",
+    indexFile: "./sample/index.html"
 };

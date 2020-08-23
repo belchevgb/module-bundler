@@ -1,16 +1,15 @@
-import { Preprocessor } from "../preprocessor";
-import { Asset } from "../../interfaces";
+import { Preprocessor, PreprocessorContext } from "../preprocessor";
 import ts = require("typescript");
 
 export class TypeScriptPreprocessor extends Preprocessor {
-    preprocess(asset: Asset): Promise<{ asset: Asset; continueChain?: boolean; }> {
-        if (asset.extension !== ".ts") {
+    preprocess(ctx: PreprocessorContext): Promise<PreprocessorContext> {
+        if (ctx.extension !== ".ts") {
             return null;
         }
 
-        asset.content = ts.transpileModule(asset.content, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
-        asset.extension = ".js";
+        ctx.fileContent = ts.transpileModule(ctx.fileContent, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+        ctx.extension = ".js";
         
-        return Promise.resolve({ asset });
+        return Promise.resolve(ctx);
     }
 }

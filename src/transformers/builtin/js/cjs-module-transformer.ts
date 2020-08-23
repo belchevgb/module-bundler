@@ -1,7 +1,6 @@
 import ts = require("typescript");
-import { JsModule } from "../../../module";
-import { printNode } from "../../debug";
-import { INTERNAL_REQUIRE_FN_NAME, EXPORTED_MEMBERS_PROP_NAME } from "../../utils";
+import { INTERNAL_REQUIRE_FN_NAME, EXPORTED_MEMBERS_PROP_NAME } from "../../../compiler/js/ast/utils";
+import { JsModule } from "../../../compiler/modules/js-module";
 
 // removes Object.defineProperty(exports, "__esModule", { value: true });
 function cjsRemoveDefine__esModuleTransformer<T extends ts.Node>(): ts.TransformerFactory<T> {
