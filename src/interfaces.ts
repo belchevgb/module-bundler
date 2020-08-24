@@ -8,6 +8,9 @@ export enum ModuleTypes {
 
 export class Asset {
     public dependencies: Asset[] = []
+    public importedInModulesIds: string[] = [];
+    public dependentModuleIds: string[] = [];
+    public readonly rootAssetIds: string[] = [];
 
     constructor(
         public readonly originalFilePath: string,
@@ -19,10 +22,10 @@ export class Asset {
 }
 
 export class Bundle {
-    readonly modules: string[] = [];
+    constructor(public readonly modules: string[] = []) { }
 
     toString() {
-        return this.modules.join("");
+        return this.modules.join("\n");
     }
 }
 

@@ -9,17 +9,19 @@ import { System, ModuleTypes, Bundle, Asset } from "./interfaces";
 import { preprocessAsset, registerPreprocessor } from "./preprocessors/preprocessor";
 import { generate, GeneratorCommand, registerGenerator } from "./generators/generator";
 import { resolveAssetPath, registerPathResolver } from "./path-resolvers/path-resolver";
-import { visitEachJsModule as visitEachJsModule, astToString, visitEachJsModuleAsync, createRuntimeBundle } from "./compiler/js/ast/utils";
+import { visitEachJsModule as visitEachJsModule, astToString, visitEachJsModuleAsync, createRuntimeBundle, wrapModule, beautifyCode } from "./compiler/js/ast/utils";
 import { optimizeBundle, registerOptimizer } from "./optimizers/optimizer";
 import { parseHtml, insertAppScript } from "./compiler/html";
 import { createAsset } from "./compiler/modules";
 import { analyzeAsset, registerAnalyzer } from "./analyzer";
+import { ModuleCache } from "./cache/module-cache";
 
 class SystemImpl implements System {
     readonly fs: FileSystem;
     readonly path: Path;
     private cfg: Config;
     private entryModules: JsModule[] = [];
+    private assetCache = new ModuleCache();
 
     constructor() {
         this.fs = getFileSystem();
@@ -42,46 +44,74 @@ class SystemImpl implements System {
     }
 
     private async buildAssetGraph() {
-        const createAssetModule = async (currentModule: Asset, path: string) => {
+        const getAssetModule = async (currentModule: Asset, path: string) => {
             const currentModulePath = currentModule?.originalFilePath || "";
             const filePath = await resolveAssetPath(currentModulePath, path, ModuleTypes.script, this);
+            const cachedAsset = this.assetCache.get(filePath);
+            if (cachedAsset) {
+                return cachedAsset;
+            }
+
             const ext = this.path.getFileExtension(filePath);
             const content = this.fs.readTextFile(filePath);
 
             const preprocessedAsset = await preprocessAsset({ fileContent: content, extension: ext });
             const assetModule = createAsset(filePath, ext, preprocessedAsset.fileContent, preprocessedAsset.extension, await generate(GeneratorCommand.moduleId));
 
+            this.assetCache.add(assetModule);
+
             return assetModule;
         }
 
-        const linkModules = async(asset: Asset) => {
+        const linkModules = async(asset: Asset, root: Asset) => {
             const assetMetadata = await analyzeAsset(asset);
 
             if (assetMetadata?.imports?.length) {
                 for (const imp of assetMetadata.imports) {
-                    const dep = await createAssetModule(asset, imp);
+                    const dep = await getAssetModule(asset, imp);
+
+                    dep.rootAssetIds.push(root.id);
+                    dep.importedInModulesIds.push(asset.id);
+                    asset.dependentModuleIds.push(dep.id);
                     asset.dependencies.push(dep);
                 }
             }
 
             for (const dep of asset.dependencies) {
-                linkModules(dep);
+                linkModules(dep, root);
             }
         };
 
         for (const ep of this.cfg.entrypoints) {
-            const epModule = await createAssetModule(null, ep.path);
+            const epModule = await getAssetModule(null, ep.path);
             this.entryModules.push(epModule as JsModule);
 
-            await linkModules(epModule);
+            await linkModules(epModule, epModule);
         }
     }
 
     private async output() {
-        const bundles: Bundle[] = [];
+        let bundles: Bundle[] = [];
+        const commonModules = new Map<string, boolean>();
+        const commonBundleModules = new Set<string>();
 
         const createBundleTrees = async (asset: Asset, bundle: Bundle) => {
-            bundle.modules.push(asset.latestContent);
+            const moduleContent = wrapModule(asset);
+            const cachedCommonModuleValue = commonModules.get(asset.id);
+            let isCommonModule = false;
+
+            if (cachedCommonModuleValue !== null && cachedCommonModuleValue !== undefined) {
+                isCommonModule = cachedCommonModuleValue;
+            } else {
+                isCommonModule = this.isCommonModule(asset);
+                commonModules.set(asset.id, isCommonModule);
+            }
+            
+            if (isCommonModule) {
+                commonBundleModules.add(moduleContent);
+            } else {
+                bundle.modules.push(moduleContent);
+            }
 
             for (const chAsset of asset.dependencies) {
                 await createBundleTrees(chAsset, bundle);
@@ -95,7 +125,10 @@ class SystemImpl implements System {
             await createBundleTrees(em, bundle);
         }
 
-        bundles.unshift(createRuntimeBundle(this));
+        const commonBundle = new Bundle(Array.from(commonBundleModules));
+        const runtimeBundle = createRuntimeBundle(this);
+
+        bundles = [runtimeBundle, commonBundle, ...bundles];
 
         const html = this.fs.readTextFile(this.cfg.indexFile);
         const htmlAst = parseHtml(html);
@@ -106,6 +139,8 @@ class SystemImpl implements System {
 
             if (this.cfg.mode === "prod") {
                 content = await optimizeBundle(content, this);
+            } else {
+                content = beautifyCode(content);
             }
 
             const bundleName = `bundle_${i}.js`;
@@ -126,6 +161,21 @@ class SystemImpl implements System {
         }
 
         this.fs.write(outputIndexPath, htmlAst.serialize());
+    }
+
+    private isCommonModule(module: Asset) {
+        const isUsedInMoreThanOneBundles = module.rootAssetIds?.length > 0;
+        if (!isUsedInMoreThanOneBundles) {
+            return false;
+        }
+
+        for (const dependentModule of module.dependencies) {
+            if (!this.isCommonModule(dependentModule)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 

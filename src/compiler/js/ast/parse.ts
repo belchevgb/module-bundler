@@ -1,7 +1,6 @@
 import * as ts from "typescript";
 import { JsModule, JsModuleLibs } from "../../modules/js-module";
 import { INTERNAL_REQUIRE_FN_NAME, visitEachNode } from "./utils";
-import { printNode, printNodeKind } from "./debug";
 
 export function parseModule(filename: string, content: string) {
     return ts.createSourceFile(filename, content, ts.ScriptTarget.Latest);
@@ -24,7 +23,7 @@ function tryGetModulePath(node: ts.Node) {
 
     const callExpr = node as ts.CallExpression;
     const expr = callExpr.expression;
-    const isRequireCall = ts.isIdentifier(expr) && expr.text === "require" && callExpr.arguments.length === 1 && ts.isStringLiteral(callExpr.arguments[0]);
+    const isRequireCall = ts.isIdentifier(expr) && expr.text === INTERNAL_REQUIRE_FN_NAME && callExpr.arguments.length === 1 && ts.isStringLiteral(callExpr.arguments[0]);
 
     if (!isRequireCall) {
         return null;
