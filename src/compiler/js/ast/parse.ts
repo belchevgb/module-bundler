@@ -1,6 +1,7 @@
 import * as ts from "typescript";
 import { JsModule, JsModuleLibs } from "../../modules/js-module";
 import { INTERNAL_REQUIRE_FN_NAME, visitEachNode } from "./utils";
+import { hasValue } from "../../../utils/common";
 
 export function parseModule(filename: string, content: string) {
     return ts.createSourceFile(filename, content, ts.ScriptTarget.Latest);
@@ -38,7 +39,7 @@ export function getImportedModulePaths(module: JsModule) {
     
     visitEachNode(module.ast, n => {
         const maybeImportPath = tryGetModulePath(n);
-        if (maybeImportPath !== null) {
+        if (hasValue(maybeImportPath)) {
             imports.push(maybeImportPath);
         }
     });

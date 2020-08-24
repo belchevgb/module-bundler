@@ -1,4 +1,5 @@
 import { Asset } from "../interfaces";
+import { hasValue } from "../utils/common";
 
 export enum GeneratorCommand {
     moduleId
@@ -17,7 +18,7 @@ export function registerGenerator(gen: Generator) {
 export async function generate(command: GeneratorCommand) {
     for (const gen of generators) {
         const result = await gen.generate(command);
-        if (result !== null || result !== undefined) {
+        if (hasValue(result)) {
             return result;
         }
     }

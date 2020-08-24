@@ -15,6 +15,7 @@ import { parseHtml, insertAppScript } from "./compiler/html";
 import { createAsset } from "./compiler/modules";
 import { analyzeAsset, registerAnalyzer } from "./analyzer";
 import { ModuleCache } from "./cache/module-cache";
+import { isCommonModule } from "./internal/module-graph/common-modules";
 
 class SystemImpl implements System {
     readonly fs: FileSystem;
@@ -74,6 +75,9 @@ class SystemImpl implements System {
                     dep.importedInModulesIds.push(asset.id);
                     asset.dependentModuleIds.push(dep.id);
                     asset.dependencies.push(dep);
+
+                    // TODO: optimize
+                    asset.latestContent = asset.latestContent.replace(imp, dep.id);
                 }
             }
 
@@ -92,23 +96,13 @@ class SystemImpl implements System {
 
     private async output() {
         let bundles: Bundle[] = [];
-        const commonModules = new Map<string, boolean>();
-        const commonBundleModules = new Set<string>();
+        const commonModules = new Set<string>();
 
         const createBundleTrees = async (asset: Asset, bundle: Bundle) => {
             const moduleContent = wrapModule(asset);
-            const cachedCommonModuleValue = commonModules.get(asset.id);
-            let isCommonModule = false;
 
-            if (cachedCommonModuleValue !== null && cachedCommonModuleValue !== undefined) {
-                isCommonModule = cachedCommonModuleValue;
-            } else {
-                isCommonModule = this.isCommonModule(asset);
-                commonModules.set(asset.id, isCommonModule);
-            }
-            
-            if (isCommonModule) {
-                commonBundleModules.add(moduleContent);
+            if (isCommonModule(asset)) {
+                commonModules.add(moduleContent);
             } else {
                 bundle.modules.push(moduleContent);
             }
@@ -125,7 +119,7 @@ class SystemImpl implements System {
             await createBundleTrees(em, bundle);
         }
 
-        const commonBundle = new Bundle(Array.from(commonBundleModules));
+        const commonBundle = new Bundle(Array.from(commonModules));
         const runtimeBundle = createRuntimeBundle(this);
 
         bundles = [runtimeBundle, commonBundle, ...bundles];
@@ -161,21 +155,6 @@ class SystemImpl implements System {
         }
 
         this.fs.write(outputIndexPath, htmlAst.serialize());
-    }
-
-    private isCommonModule(module: Asset) {
-        const isUsedInMoreThanOneBundles = module.rootAssetIds?.length > 1;
-        if (!isUsedInMoreThanOneBundles) {
-            return false;
-        }
-
-        for (const dependentModule of module.dependencies) {
-            if (!this.isCommonModule(dependentModule)) {
-                return false;
-            }
-        }
-
-        return true;
     }
 }
 
