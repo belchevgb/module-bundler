@@ -1,5 +1,6 @@
 module.exports = {
     entrypoints: [{ path: "./sample/index.ts" }],
     outDir: "dist",
-    indexFile: "./sample/index.html"
+    indexFile: "./sample/index.html",
+    mode: "prod"
 };

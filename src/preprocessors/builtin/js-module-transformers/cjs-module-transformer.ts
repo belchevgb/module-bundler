@@ -95,7 +95,7 @@ function exportsTransformer<T extends ts.Node>(): ts.TransformerFactory<T> {
     };
 }
 
-export function transformCjsModule(module: JsModule) {
-    const transformResult = ts.transform(module.ast, [cjsRemoveDefine__esModuleTransformer(), requireCallsTransformer(), exportsTransformer()]);
-    module.ast = transformResult.transformed[0];
+export function transformCjsModule(ast: ts.Node) {
+    const transformResult = ts.transform(ast, [cjsRemoveDefine__esModuleTransformer(), requireCallsTransformer(), exportsTransformer()]);
+    return transformResult.transformed[0];
 }

@@ -10,8 +10,7 @@ import { Path } from "./utils/path/interfaces";
 import { Optimizer } from "./optimizers/optimizer";
 import { AssetAnalyzer } from "./analyzer";
 import { DefaultJsAnalyzer } from "./analyzer/builtin/js-analyzer";
-import { AssetTransformer } from "./transformers/transformer";
-import { DefaultJsAssetTransformer } from "./transformers/builtin/js/js-asset.transformer";
+import { InternalJsModulePreprocessor } from "./preprocessors/builtin/js-module-transformers/js-asset.transformer";
 
 interface EntryPoint {
     path: string;
@@ -27,7 +26,7 @@ export interface Config {
     pathResolvers: PathResolver[];
     analyzers: AssetAnalyzer[];
     optimizers: Optimizer[];
-    transformers: AssetTransformer[];
+    mode: "dev" | "prod";
 }
 
 const DEFAULT_CONFIG_FILE_NAME = "bundler-config.ts";
@@ -41,22 +40,20 @@ function initEmptyProps(cfg: Config) {
     if (!cfg.optimizers?.length) cfg.optimizers = [];
     if (!cfg.analyzers?.length) cfg.analyzers = [];
     if (!cfg.optimizers?.length) cfg.optimizers = [];
-    if (!cfg.transformers?.length) cfg.transformers = [];
 
     if (!cfg.outDir) cfg.outDir = "dist";
     if (!cfg.indexFile) cfg.indexFile = "index.html";
+    if (!cfg.mode) cfg.mode = "dev";
 }
 
 function addDefaultConfig(cfg: Config, path: Path) {
-    cfg.preprocessors.push(new TypeScriptPreprocessor());
+    cfg.preprocessors.push(new TypeScriptPreprocessor(), new InternalJsModulePreprocessor());
 
     cfg.generators.push(new NumberIdGenerator());
 
     cfg.pathResolvers.push(new DefaultScriptPathResolver());
 
     cfg.analyzers.push(new DefaultJsAnalyzer());
-
-    cfg.transformers.push(new DefaultJsAssetTransformer());
 
     cfg.outDir = path.resolveRelativeToProjectRoot(cfg.outDir);
     cfg.indexFile = path.resolveRelativeToProjectRoot(cfg.indexFile);

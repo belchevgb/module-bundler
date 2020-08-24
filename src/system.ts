@@ -10,12 +10,10 @@ import { preprocessAsset, registerPreprocessor } from "./preprocessors/preproces
 import { generate, GeneratorCommand, registerGenerator } from "./generators/generator";
 import { resolveAssetPath, registerPathResolver } from "./path-resolvers/path-resolver";
 import { visitEachJsModule as visitEachJsModule, astToString, visitEachJsModuleAsync, createRuntimeBundle } from "./compiler/js/ast/utils";
-import { optimizeAsset, registerOptimizer } from "./optimizers/optimizer";
+import { optimizeBundle, registerOptimizer } from "./optimizers/optimizer";
 import { parseHtml, insertAppScript } from "./compiler/html";
 import { createAsset } from "./compiler/modules";
 import { analyzeAsset, registerAnalyzer } from "./analyzer";
-import { registerTransformer, wrapModule } from "./transformers/transformer";
-import { transformAsset } from "./transformers/transformer";
 
 class SystemImpl implements System {
     readonly fs: FileSystem;
@@ -41,7 +39,6 @@ class SystemImpl implements System {
         this.cfg.pathResolvers.forEach(p => registerPathResolver(p));
         this.cfg.analyzers.forEach(p => registerAnalyzer(p));
         this.cfg.optimizers.forEach(p => registerOptimizer(p));
-        this.cfg.transformers.forEach(p => registerTransformer(p));
     }
 
     private async buildAssetGraph() {
@@ -83,27 +80,19 @@ class SystemImpl implements System {
     private async output() {
         const bundles: Bundle[] = [];
 
-        const transformAssetModule = async (asset: Asset) => {
-            const moduleContent = await transformAsset(asset, this);
-            const moduleSource = wrapModule(moduleContent, asset.id);
-
-            return moduleSource;
-        };
-
-        const transformAssetTree = async (asset: Asset, bundle: Bundle) => {
-            bundle.modules.push(await transformAssetModule(asset));
+        const createBundleTrees = async (asset: Asset, bundle: Bundle) => {
+            bundle.modules.push(asset.latestContent);
 
             for (const chAsset of asset.dependencies) {
-                await transformAssetTree(chAsset, bundle);
+                await createBundleTrees(chAsset, bundle);
             }
         };
-
 
         for (const em of this.entryModules) {
             const bundle = new Bundle();
             bundles.push(bundle);
 
-            await transformAssetTree(em, bundle);
+            await createBundleTrees(em, bundle);
         }
 
         bundles.unshift(createRuntimeBundle(this));
@@ -113,7 +102,11 @@ class SystemImpl implements System {
 
         for (let i = 0; i < bundles.length; i++) {
             const bundle = bundles[i];
-            const content = bundle.toString();
+            let content = bundle.toString();
+
+            if (this.cfg.mode === "prod") {
+                content = await optimizeBundle(content, this);
+            }
 
             const bundleName = `bundle_${i}.js`;
             const bundlePath = this.path.join(this.cfg.outDir, bundleName);
