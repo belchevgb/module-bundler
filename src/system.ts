@@ -164,7 +164,7 @@ class SystemImpl implements System {
     }
 
     private isCommonModule(module: Asset) {
-        const isUsedInMoreThanOneBundles = module.rootAssetIds?.length > 0;
+        const isUsedInMoreThanOneBundles = module.rootAssetIds?.length > 1;
         if (!isUsedInMoreThanOneBundles) {
             return false;
         }
